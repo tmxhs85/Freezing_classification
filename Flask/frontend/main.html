@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="kor">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>5조 결빙예측모델링</title>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <!--bootstrap-->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz"
+        crossorigin="anonymous"></script>
+    </head>
+    <style>
+.black_bg {
+    display: none;
+    position: absolute;
+    content: "";
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+/* 기본 스타일 */
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+}
+
+/* 네비게이션 바 */
+.navbar {
+    background-color: #f4f4f4;
+    padding: 15px 0;
+    display: flex;
+    justify-content: center; /* 수평 중앙 정렬 */
+    align-items: center; /* 수직 중앙 정렬 */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* 네비게이션 링크 리스트 */
+.nav-links {
+    list-style: none; /* 기본 목록 스타일 제거 */
+    padding: 0;
+    margin: 0; /* 여백 제거 */
+    display: flex;
+    justify-content: center; /* 수평 중앙 정렬 */
+    gap: 15px; /* 각 항목 간격 */
+}
+
+/* 네비게이션 링크 */
+.nav-links li {
+    flex: none; /* 아이템 크기 고정 */
+}
+
+.nav-links li a {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    color: #333;
+    padding: 7px 22px;
+    border: 2px solid #333; /* 네모 테두리 */
+    border-radius: 4px;
+    white-space: nowrap;
+    font-size: 16px;
+    transition: all 0.3s ease; /* 애니메이션 효과 */
+}
+
+/* 마우스 커서를 올렸을 때 효과 */
+.nav-links li a:hover {
+    background-color: #000000; /* 배경색 변경 */
+    color: white; /* 텍스트 색 변경 */
+    border-color: #000000; /* 테두리 색 변경 */
+}
+#content {
+    display: flex; /* Flexbox 활성화 */
+    flex-wrap: wrap; /* 이미지가 여러 줄로 나올 경우 줄바꿈 허용 */
+    justify-content: center; /* 수평 중앙 정렬 */
+    align-items: center; /* 수직 중앙 정렬 (필요한 경우) */
+    margin-top: 20px;
+    gap: 10px; /* 이미지 간 간격 */
+}
+
+#content img {
+    max-width: 80%; /* 이미지 크기 제한 */
+    height: auto; /* 비율 유지 */
+    margin: 10px; /* 이미지 주변 여백 */
+    display: block; /* 이미지를 블록 요소로 변환 (불필요한 공간 제거) */
+}
+
+#footer-color {
+    background-color: #bebbbb; /* 회색 */
+    color: #ffffff; /* 텍스트 색상을 흰색으로 변경 (가독성 향상) */
+}
+
+#footer-color .text-black {
+    color: #ffffff; /* "text-black" 클래스가 텍스트를 흰색으로 덮어씌움 */
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .nav-links a {
+        font-size: 14px; /* 텍스트 크기 줄이기 */
+        padding: 8px 12px; /* 버튼 패딩 줄이기 */
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-links {
+        flex-direction: column; /* 세로 방향으로 정렬 */
+        gap: 5px; /* 버튼 간격 줄이기 */
+    }
+
+    .nav-links a {
+        font-size: 12px; /* 텍스트 크기 더 줄이기 */
+        padding: 6px 10px; /* 버튼 패딩 더 줄이기 */
+    }
+}
+
+
+    </style>
+        <body>
+ <!-- 상단 네비게이션바 -->
+ <nav class="navbar navbar-expand-lg navbar-light" style="background-color: rgb(255, 255, 255);">
+    <div class="container px-4 px-lg-5">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+            aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+
+
+
+            <a href="/" class="me-auto navbar-brand"><strong>결빙예측프로그램</strong></a>
+            <form class="form-inline my-2 my-lg-0">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item active">
+                    </li>
+                </ul>
+                <ul id="navbar-right" class="navbar-nav mr-auto">
+                    <li class="nav-item disable">
+                        <li class="nav-item disable"><a id="login-btn" class="nav-link btn me-2 btn_org"
+                            href="/index"> 내 위치 결빙예측 해보기 <span class="sr-only"></span></a></li>
+
+                    </li>
+                </ul>
+        </div>
+    </div>
+</nav>
+<nav class="navbar">
+    <!-- 메뉴 링크 -->
+    <ul class="nav-links">
+        <li><a href="#" id="model-all">모델 비교</a></li>
+        <li><a href="#" id="model-1">RF모델</a></li>
+        <li><a href="#" id="model-2">GB모델</a></li>
+        <li><a href="#" id="model-3">AB모델</a></li>
+        <li><a href="#" id="model-4">XGB모델</a></li>
+        <li><a href="#" id="model-5">LGB모델</a></li>
+        <li><a href="#" id="model-6">CB모델</a></li>
+        <li><a href="#" id="model-7">HGB모델</a></li>
+    </ul>
+
+</nav>
+<div id="content">
+    <p>버튼을 눌러 데이터를 가져오세요.</p>
+</div>
+
+
+
+
+<div class="jumbotron text-center mt-5 mb-0" Id="footer-container">
+    <footer id="footer-color" class="py-5">
+        <h3 class="m-0 text-center text-black">5조</h3>
+        <div id="footer-container" class="container">
+            <div class="jumbotron text-center mt-5 mb-0">
+                <div class="mem_list">
+                    <p class="m-0 text-center text-black">박소진
+                    </p>
+                    <p class="m-0 text-center text-black">박거량
+                    </p>
+                    <p class="m-0 text-center text-black">손우영
+                    </p>
+                    <p class="m-0 text-center text-black">최태호
+                    </p>
+                    </p><br>
+                    <p class="m-0 text-center">Copyright &copy; Your Website 2025</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+</div>
+<script>
+// const backend_base_url = "http://127.0.0.1:8000"
+//const backend_base_url = "https://lucedude.link"
+//const frontend_base_url = "http://127.0.0.1:5500"
+
+console.log("hello")
+
+const azureBaseUrl = "https://sonw006428547489.blob.core.windows.net/freezing-ml/"; // Azure Blob Storage URL
+const sasToken = "sp=r&st=2025-01-22T05:23:22Z&se=2025-01-22T13:23:22Z&spr=https&sv=2022-11-02&sr=c&sig=EUPiF%2F5ud1M8r%2FDetr7BHrp44u73mZgTUvf1n6OneeQ%3D"; // SAS Token (보안 주의)
+console.log("Generated URL:", azureBaseUrl);
+// 버튼 클릭 이벤트 바인딩
+document.querySelectorAll('.nav-links a').forEach(button => {
+    button.addEventListener('click', event => {
+        event.preventDefault(); // 기본 동작 방지
+        const id = event.target.id; // 버튼 ID 가져오기
+        handleButtonClick(id);
+    });
+});
+
+
+
+// 버튼 클릭 처리
+function handleButtonClick(buttonId) {
+    let fileName;
+    $(document).ready(function () {
+    $('.nav-links a').on('click', function (event) {
+        event.preventDefault();
+
+        const selectedId = $(this).attr('id');
+
+        // AJAX 요청
+        $.ajax({
+            url: `/load-model-data?model=${imageFileName}`, // 선택된모델ID를서버로전달
+            method: 'GET',
+            success: function (response) {
+                if (response.result === 'success') {
+                    // 모델링 데이터를 표시 (예: HTML 업데이트)
+                    $('#result-container').html(`<img src="data:image/jpeg;base64,${response.data}" alt="모델 이미지">`);
+                } else {
+                    alert('데이터를 불러오는 데 실패했습니다.');
+                }
+            },
+            error: function () {
+                alert('서버 요청 중 오류가 발생했습니다.');
+            }
+        });
+    });
+});
+
+    // 버튼 ID에 따라 파일 이름 지정
+    switch (buttonId) {
+        case "model-all":
+            fileName = "all_graph.png";
+            break;
+        case "model-1":
+            fileName = "RF_graph.png";
+            break;
+        case "model-2":
+            fileName = "GB_graph.png";
+            break;
+        case "model-3":
+            fileName = "AB_graph.png";
+            break;
+        case "model-4":
+            fileName = "XG_graph.png";
+            break;
+        case "model-5":
+            fileName = "LGB_graph.png";
+            break;
+        case "model-6":
+            fileName = "CB_graph.png";
+            break;
+        case "model-7":
+            fileName = "HGB_graph.png";
+            break;
+        default:
+            console.error("알 수 없는 버튼 ID:", buttonId);
+            return;
+    }
+
+    // 이후 fileName을 사용하여 URL을 만들거나 fetch 호출
+    const url = `https://sonw006428547489.blob.core.windows.net/freezing-ml/${fileName}?${sasToken}`;
+
+    fetch(url, {mode:"cors"})
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("데이터를 가져오지 못했습니다.");
+            }
+            return response.blob();
+        })
+        .then(data => {
+            const imageUrl = URL.createObjectURL(data);
+            // 이미지를 페이지에 표시
+            document.getElementById('content').innerHTML = `<img src="${imageUrl}" alt="Loaded Image" style="max-width: 80%; height: auto;">`;
+        })
+        .catch(error => {
+            console.error("에러:", error);
+        });
+}
+
+
+// JSON 데이터 표시
+function displayJsonData(data) {
+    const content = document.getElementById('content');
+    if (!content) {
+        console.error("content 요소를 찾을 수 없습니다.");
+        return;
+    }
+    content.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+}
+
+// 이미지 표시
+function displayImage(blob) {
+    const content = document.getElementById('content');
+    if (!content) {
+        console.error("content 요소를 찾을 수 없습니다.");
+        return;
+    }
+    const imageUrl = URL.createObjectURL(blob);
+    content.innerHTML = `<img src="${imageUrl}" alt="Loaded Image" style="max-width: 80%; height: auto;">`;
+}
+
+// 오류 메시지 표시
+function displayError(message) {
+    const content = document.getElementById('content');
+    if (!content) {
+        console.error("content 요소를 찾을 수 없습니다.");
+        return;
+    }
+    content.innerHTML = `<p>${message}</p>`;
+}
+
+
+</script>
+        </body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우리 지역 결빙예측하기</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script type="text/javascript">
+        function removeNonNumericCharacters(input) {
+            input.value = input.value.replace(/\D/g, '');
+        }
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .nav {
+            text-align: right;
+        }
+        .info {
+            font-size: 80%;
+            color: #3414e9;
+        }
+        .freezing-confirmed {
+            background-color: #ffe6e6;
+        }
+        .freezing-possible {
+            background-color: #fff3e6;
+        }
+    </style>
+</head>
+<body>
+    <h1>우리 지역 결빙예측하기</h1>
+    <ul class="nav" style="list-style: none;">
+        <li class="nav-item disable">
+            <a id="backtomain" href="/" 
+            style="color: black; text-decoration: none; display: inline-block; padding: 10px 15px; border-radius: 5px;">
+             모델링 분석결과 다시보기<span class="sr-only"></span>
+            </a>
+        </li>
+    </ul>
+    <form id="prediction-form">
+        <label for="region">지역:</label>
+        <select id="region" name="region" required>
+            <option value="">선택하세요</option>
+            {% for region, cities in locations.items() %}
+                <option value="{{ region }}">{{ region }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="city">도시:</label>
+        <select id="city" name="city" required disabled>
+            <option value="">지역을 먼저 선택하세요</option>
+        </select>
+        
+        <label for="day">예상날짜:</label>
+        <input oninput="removeNonNumericCharacters(this)" 
+               class="form-control" 
+               id="day" 
+               name="day" 
+               type="text" 
+               required
+               placeholder="ex)20250101" 
+               aria-label="default input example">
+        <button type="submit">조회</button>
+    </form>
+    <p class="info">결빙예측은 현재날짜 기준 +3일까지 기본적으로 제공하며, 이후는 3시간 간격으로 제공합니다.</p>
+
+    <table id="weather-table">
+        <thead>
+            <tr>
+                <th>날짜  /  시간</th>
+                <th>기온(℃)</th>
+                <th>풍속(m/s)</th>
+                <th>습도(%)</th>
+                <th>결빙 상태</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        // const backend_base_url = "http://127.0.0.1:8000"
+        //const backend_base_url = "https://lucedude.link"
+        //const frontend_base_url = "http://127.0.0.1:5500"
+        
+        const locations = {{ locations|tojson }};
+        
+        $(document).ready(function () {
+            // 지역 선택 시 도시 옵션 업데이트
+            $("#region").change(function () {
+                const region = $(this).val();
+                const citySelect = $("#city");
+                citySelect.empty();
+
+                if (region) {
+                    const cities = locations[region];
+                    citySelect.append('<option value="">도시를 선택하세요</option>');
+                    for (const city in cities) {
+                        citySelect.append(`<option value="${city}">${city}</option>`);
+                    }
+                    citySelect.prop("disabled", false);
+                } else {
+                    citySelect.append('<option value="">지역을 먼저 선택하세요</option>');
+                    citySelect.prop("disabled", true);
+                }
+            });
+
+            // 폼 제출 처리
+            $("#prediction-form").on("submit", function (e) {
+                e.preventDefault(); // 폼 기본 제출 동작 방지
+
+                const region = $("#region").val();
+                const city = $("#city").val();
+                const day = $("#day").val();
+
+                // 입력값 검증
+                if (!region || !city || !day) {
+                    alert("도시와 날짜를 모두 입력해주세요.");
+                    return;
+                }
+
+                const today = new Date();
+                const inputDate = new Date(
+                    day.slice(0, 4),
+                    parseInt(day.slice(4, 6)) - 1,
+                    day.slice(6, 8)
+                );
+
+                const maxDate = new Date();
+                maxDate.setDate(today.getDate() + 5);
+
+                if (isNaN(inputDate)) {
+                    alert("유효한 날짜를 입력해주세요.");
+                    return;
+                } else if (inputDate > maxDate) {
+                    alert("예측일은 3일을 초과할 수 없습니다.");
+                    return;
+                } else if (inputDate < today) {
+                    alert("최대 3일 후까지의 예측날짜를 입력해주세요.");
+                    return;
+                }
+
+                // AJAX 요청
+                $.ajax({
+                    url: "/predict_freezing",
+                    method: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ region, city, day }),
+                    success: function (data) {
+                        const tableBody = $("#weather-table tbody");
+                        tableBody.empty();
+                        
+                        if (data.error) {
+                            alert(data.error);
+                            return;
+                        }
+
+                        // 시간을 기준으로 정렬
+                        const sortedTimes = Object.keys(data).sort();
+                        
+                        // 각 시간대별 데이터를 테이블에 추가
+                        sortedTimes.forEach(time => {
+                            const weatherData = data[time];
+                            const rowClass = weatherData.freezing_status === 'Freezing confirmed' ? 
+                                           'freezing-confirmed' : 
+                                           weatherData.freezing_status === 'Freezing possible' ? 
+                                           'freezing-possible' : '';
+                            
+                            tableBody.append(`
+                                <tr class="${rowClass}">
+                                    <td>${formatDateTime(weatherData.fcst_time)}</td>
+                                    <td>${weatherData.temperature || "-"}</td>
+                                    <td>${weatherData.wind_speed || "-"}</td>
+                                    <td>${weatherData.humidity || "-"}</td>
+                                    <td>${weatherData.freezing_status || "-"}</td>
+                                </tr>
+                            `);
+                        });
+                        
+                    },
+                    error: function (xhr, status, error) {
+                        console.error("Error:", error);
+                        alert("날씨 데이터를 가져오는데 실패했습니다.");
+                        location.reload();
+                    }
+                });
+            });
+        });
+            // 날짜/시간 포맷 변경 함수
+        function formatDateTime(fcstTime) {
+            // fcstTime은 "YYYYMMDD HHMM" 형식으로 전달됨
+            const year = fcstTime.slice(0, 4);       // YYYY
+            const month = fcstTime.slice(4, 6);      // MM
+            const day = fcstTime.slice(6, 8);        // DD
+            const hour = fcstTime.slice(9, 11);      // HH
+            const minute = fcstTime.slice(11, 13);   // MM
+
+            // 새 포맷으로 반환
+            return `${year}-${month}-${day} ${hour}:${minute}`;
+        }
+    </script>
+</body>
+</html>
